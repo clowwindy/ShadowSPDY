@@ -23,6 +23,7 @@
 fs = require 'fs'
 spdy = require 'spdy'
 http = require 'http'
+net = require 'net'
 url = require 'url'
 
 encodeHeaders = (headers) ->
@@ -51,10 +52,10 @@ filterHeaders = (headers) ->
   newHeaders
     
 options = {
-#  ssl: false,
-#  plain: true,
-  key: fs.readFileSync('key.pem'),
-  cert: fs.readFileSync('cert.pem'),
+  ssl: false,
+  plain: true,
+#  key: fs.readFileSync('key.pem'),
+#  cert: fs.readFileSync('cert.pem'),
 #  ca: fs.readFileSync(__dirname + '/keys/spdy-ca.pem'),
   windowSize: 1024 * 1024, #
 
@@ -64,6 +65,11 @@ options = {
 
 server = spdy.createServer options, (req, res) ->
   console.log 'req'
+  console.log res
+  if req.method.toLowerCase() == 'connect'
+    server.emit 'connect', req, res.connection
+    return
+  console.log req.method
   srvUrl = url.parse(req.url)
   console.log srvUrl
   remoteReq = http.get({
@@ -92,11 +98,19 @@ server = spdy.createServer options, (req, res) ->
   )
 
 
-
 server.on 'connect', (req, socket) ->
+  # just proxy CONNECT method without doing anything
   console.log 'connect'
-#  console.log req, socket
-  
+  srvUrl = url.parse(req.url)
+  srvSocket = net.connect(srvUrl.port, srvUrl.hostname, ->
+    console.log 'remote connect'
+    socket.write('HTTP/1.1 200 Connection Established\r\n' +
+                    'Proxy-agent: Spdy-Proxy\r\n' +
+                    '\r\n')
+    srvSocket.pipe(socket)
+    socket.pipe(srvSocket)
+  )
+
 server.listen 1443 
 
 #agent = spdy.createAgent({

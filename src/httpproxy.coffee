@@ -52,8 +52,10 @@ reloadAgent = ->
     rejectUnauthorized: false,
     requestCert: true,
     spdy: {
-      plain: false
-      ssl: true
+      plain: true
+      ssl: false
+#      plain: false
+#      ssl: true
       version: 3 # Force SPDY version
     }
   )
@@ -94,8 +96,36 @@ server = http.createServer (req, res) ->
   console.log 'req'
 
 server.on 'connect', (req, socket) ->
+  # just proxy CONNECT method without doing anything
   console.log 'connect'
   srvUrl = url.parse('http://' + req.url)
+  console.log srvUrl
+  remoteReq = http.request({
+      agent:agent,
+      method:'CONNECT',
+      hostname:srvUrl.hostname,
+      port:(srvUrl.port or 80),
+      path:srvUrl.href
+  })
+  remoteReq.end()
+  remoteReq.on 'connect', (remoteRes, remoteSock, remoteHead) ->
+    console.log 'remote connect'
+    res.writeHead 200
+    res.on 'data', (chunk) ->
+      console.log 'res on data'
+      remoteRes.write chunk
+    remoteRes.on 'data', (chunk) ->
+      console.log 'remote res on data'
+      console.log chunk.length
+      res.write chunk
+#    res.on 'end', ->
+#      console.log 'res on end'
+#      remoteRes.end()
+    remoteRes.on 'end', ->
+      console.log 'remote res on end'
+      res.end()
+  console.log 'req'
+
   
 server.listen 8080 
 
