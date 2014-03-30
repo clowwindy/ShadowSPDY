@@ -1,0 +1,37 @@
+{
+    "name": "spdy-proxy",
+    "description": "a forward proxy between spdy and http",
+    "keywords": ["spdy", "proxy", "http", "https"],
+    "author": "clowwindy",
+    "version": "0.1.0",
+    "licenses": [{
+        "type": "MIT",
+        "url": "https://raw.github.com/clowwindy/spdy-proxy/master/LICENSE"
+    }],
+    "engines": {
+        "node": ">=0.8.0"
+    },
+    "directories": {
+        "lib": "./lib/spdy-proxy"
+    },
+    "main": "./lib/spdy-proxy/spdyproxy",
+    "bin": {
+        "sphttp": "./bin/sphttp",
+        "spspdy": "./bin/spspdy"
+    },
+    "scripts": {
+        "test": "cake test"
+    },
+    "homepage": "https://github.com/clowwindy/spdy-proxy",
+    "bugs": "https://github.com/clowwindy/spdy-proxy/issues",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/clowwindy/spdy-proxy.git"
+    },
+    "dependencies": {
+        "spdy": "=1.24.0"
+    },
+    "devDependencies": {
+        "coffee-script": ">=1.6.2"
+    }
+}
