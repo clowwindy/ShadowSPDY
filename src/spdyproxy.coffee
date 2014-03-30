@@ -25,6 +25,31 @@ spdy = require 'spdy'
 http = require 'http'
 url = require 'url'
 
+encodeHeaders = (headers) ->
+  newHeaders = {}
+  for k, v of headers
+    k = k.toLowerCase()
+    if k in ["transfer-encoding", "connection", 'content-encoding']
+      newHeaders["sp-#{k}"] = v
+    else
+      newHeaders[k] = v
+  console.log newHeaders
+  newHeaders
+
+filterHeaders = (headers) ->
+  newHeaders = {}
+  for k, v of headers
+    ks = k.split('-')
+    newKs = []
+    for sep in ks
+      if sep.length > 0
+        sep = sep.charAt(0).toUpperCase() + sep.slice(1)
+      newKs.push sep
+    k = newKs.join '-'
+    newHeaders[k] = v
+  console.log newHeaders
+  newHeaders
+    
 options = {
 #  ssl: false,
 #  plain: true,
@@ -43,22 +68,24 @@ server = spdy.createServer options, (req, res) ->
   console.log srvUrl
   remoteReq = http.get({
       hostname:srvUrl.hostname,
+      path:srvUrl.path,
       port:(srvUrl.port or 80),
-      headers:req.headers,
+      headers:filterHeaders(req.headers),
       trailers:req.trailers,
       httpVersion:req.httpVersion
     }, (remoteRes) ->
       console.log 'remote res'
-      res.writeHead remoteRes.statusCode
+      res.writeHead remoteRes.statusCode, encodeHeaders(remoteRes.headers)
       res.on 'data', (chunk) ->
         console.log 'res on data'
         remoteRes.write chunk
       remoteRes.on 'data', (chunk) ->
         console.log 'remote res on data'
+        console.log chunk.length
         res.write chunk
-      res.on 'end', ->
-        console.log 'res on end'
-        remoteRes.end()
+#      res.on 'end', ->
+#        console.log 'res on end'
+#        remoteRes.end()
       remoteRes.on 'end', ->
         console.log 'remote res on end'
         res.end()

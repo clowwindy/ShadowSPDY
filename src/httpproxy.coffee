@@ -27,6 +27,24 @@ url = require 'url'
 
 agent = null
 
+decodeHeaders = (headers) ->
+  newHeaders = {}
+  for k, v of headers
+    if k.indexOf('sp-') == 0
+      newHeaders[k.slice(3)] = v
+    else
+      newHeaders[k] = v
+  console.log newHeaders
+  newHeaders
+
+filterHeaders = (headers) ->
+  newHeaders = {}
+  for k, v of headers
+    if k not in ['Proxy-Connection', 'Connection', 'Keep-Alive']
+      newHeaders[k] = v
+  console.log newHeaders
+  newHeaders
+
 reloadAgent = ->
   agent = spdy.createAgent(
     host: '127.0.0.1',
@@ -53,21 +71,22 @@ server = http.createServer (req, res) ->
       hostname:srvUrl.hostname,
       port:(srvUrl.port or 80),
       path:srvUrl.href,
-      headers:req.headers,
+      headers:filterHeaders(req.headers),
       trailers:req.trailers,
       httpVersion:req.httpVersion
   }, (remoteRes) ->
     console.log 'remote res'
-    res.writeHead remoteRes.statusCode
+    res.writeHead remoteRes.statusCode, decodeHeaders(remoteRes.headers)
     res.on 'data', (chunk) ->
       console.log 'res on data'
       remoteRes.write chunk
     remoteRes.on 'data', (chunk) ->
       console.log 'remote res on data'
+      console.log chunk.length
       res.write chunk
-    res.on 'end', ->
-      console.log 'res on end'
-      remoteRes.end()
+#    res.on 'end', ->
+#      console.log 'res on end'
+#      remoteRes.end()
     remoteRes.on 'end', ->
       console.log 'remote res on end'
       res.end()
