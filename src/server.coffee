@@ -1,5 +1,3 @@
-# a spdy to http proxy
-
 # Copyright (c) 2014 clowwindy
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy

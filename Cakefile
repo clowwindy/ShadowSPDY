@@ -7,7 +7,7 @@ build = () ->
     coffeeCmd = 'coffee.cmd'
   else
     coffeeCmd = 'coffee'
-  coffee = spawn coffeeCmd, ['-c', '-o', 'lib/spdy-proxy/', 'src']
+  coffee = spawn coffeeCmd, ['-c', '-o', 'lib/shadowspdy/', 'src']
   coffee.stderr.on 'data', (data) ->
     process.stderr.write data.toString()
   coffee.stdout.on 'data', (data) ->
@@ -18,7 +18,7 @@ build = () ->
 
 test = () ->
   os = require 'os'
-  coffee = spawn 'node', ['lib/spdy-proxy//test.js']
+  coffee = spawn 'node', ['lib/shadowspdy//test.js']
   coffee.stderr.on 'data', (data) ->
     process.stderr.write data.toString()
   coffee.stdout.on 'data', (data) ->

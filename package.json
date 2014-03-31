@@ -1,32 +1,32 @@
 {
-    "name": "spdy-proxy",
-    "description": "a forward proxy between spdy and http",
-    "keywords": ["spdy", "proxy", "http", "https"],
+    "name": "shadowspdy",
+    "description": "a tunnel proxy using spdy as the tunnel",
+    "keywords": ["SPDY", "proxy", "http", "https"],
     "author": "clowwindy",
     "version": "0.1.0",
     "licenses": [{
         "type": "MIT",
-        "url": "https://raw.github.com/clowwindy/spdy-proxy/master/LICENSE"
+        "url": "https://raw.github.com/clowwindy/shadowspdy/master/LICENSE"
     }],
     "engines": {
         "node": ">=0.8.0"
     },
     "directories": {
-        "lib": "./lib/spdy-proxy"
+        "lib": "./lib/shadowspdy"
     },
-    "main": "./lib/spdy-proxy/spdyproxy",
+    "main": "./lib/shadowspdy/local",
     "bin": {
-        "sphttp": "./bin/sphttp",
-        "spspdy": "./bin/spspdy"
+        "sphttp": "./bin/splocal",
+        "spspdy": "./bin/spserver"
     },
     "scripts": {
         "test": "cake test"
     },
-    "homepage": "https://github.com/clowwindy/spdy-proxy",
-    "bugs": "https://github.com/clowwindy/spdy-proxy/issues",
+    "homepage": "https://github.com/clowwindy/shadowspdy",
+    "bugs": "https://github.com/clowwindy/shadowspdy/issues",
     "repository": {
         "type": "git",
-        "url": "https://github.com/clowwindy/spdy-proxy.git"
+        "url": "https://github.com/clowwindy/shadowspdy.git"
     },
     "dependencies": {
         "spdy": "=1.24.0"
