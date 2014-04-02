@@ -40,26 +40,41 @@ inetAton = (ipStr) ->
       i++
     buf
 
-connections = 0
+currentConnections = 0
+connectionIdCount = 1
 streamIdCount = 1
 
-createServer = (serverAddr, serverPort, port, key, method, timeout, local_address=null) ->
-  _connection = null
+createServer = (serverAddr, serverPort, port, key, method, timeout, local_address=null, connections=1) ->
+  _connections = {}
   
-  getConnection = ->
+  getConnection = (callback) ->
     # get a connection by random
-    # currently there's only one connection
-    return _connection
-    
-  _socket = net.connect {port: serverPort, host: serverAddr}, ->
-    connection = new spdy.Connection(_socket, {
-      isServer: false
-    })
-    connection._setVersion(3.0)
-    connection.on 'error', (err) ->
-      console.error err
-    _connection = connection
-    
+    if Object.keys(_connections).length >= connections
+      utils.debug 'return an existing connection'
+      keys = Object.keys(_connections)
+      index = Math.floor(Math.random() * keys.length)
+      process.nextTick ->
+        callback(_connections[keys[index]])
+      return _connections[keys[index]]
+    else
+      # return a new connection
+      utils.debug 'return a new connection'
+      _socket = net.connect {port: serverPort, host: serverAddr}, ->
+        connection = new spdy.Connection(_socket, {
+          isServer: false
+        })
+        connection._setVersion(3.1)
+        connection._connectionId = connectionIdCount
+        connectionIdCount += 1
+        _connections[connection._connectionId] = connection
+        connection.on 'error', (err) ->
+          utils.error 'connection error:'
+          utils.error err
+          connection.destroy()
+          delete _connections[connection.connectionId]
+        callback(connection)
+    return null
+   
   createStream = (connection, callback) ->
     stream = new spdy.Stream(connection, {
       id: streamIdCount,
@@ -109,7 +124,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
 #    return [aServer, aPort]
 
   server = net.createServer((connection) ->
-    connections += 1
+    currentConnections += 1
     stage = 0
     headerLength = 0
     remote = null
@@ -118,13 +133,13 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
     remoteAddr = null
     remotePort = null
     addrToSend = ""
-    utils.debug "connections: #{connections}"
+    utils.debug "connections: #{currentConnections}"
     clean = ->
       utils.debug "clean"
-      connections -= 1
+      currentConnections -= 1
       remote = null
       connection = null
-      utils.debug "connections: #{connections}"
+      utils.debug "connections: #{currentConnections}"
 
     connection.on "data", (data) ->
       utils.log utils.EVERYTHING, "connection on data"
@@ -204,52 +219,52 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
 #          utils.info "connecting #{aServer}:#{aPort}"
           utils.info "connecting #{remoteAddr}:#{remotePort}"
 #          remote = net.connect(aPort, aServer, ->
-          remote = createStream(getConnection(), ->
-            addrToSendBuf = new Buffer(addrToSend, "binary")
-            remote.write addrToSendBuf
-            i = 0
-
-            while i < cachedPieces.length
-              piece = cachedPieces[i]
-              remote.write piece
-              i++
-            cachedPieces = null # save memory
-            stage = 5
-            utils.debug "stage = 5"
-          )
-          remote.on "data", (data) ->
-            utils.log utils.EVERYTHING, "remote on data"
-            try
-              remote.pause()  unless connection.write(data)
-            catch e
-              throw e
-              utils.error e
+          getConnection (aConnection) ->
+            remote = createStream(aConnection, ->
+              addrToSendBuf = new Buffer(addrToSend, "binary")
+              remote.write addrToSendBuf
+              i = 0
+  
+              while i < cachedPieces.length
+                piece = cachedPieces[i]
+                remote.write piece
+                i++
+              cachedPieces = null # save memory
+              stage = 5
+              utils.debug "stage = 5"
+            )
+            remote.on "data", (data) ->
+              utils.log utils.EVERYTHING, "remote on data"
+              try
+                remote.pause()  unless connection.write(data)
+              catch e
+                utils.error e
+                remote.destroy() if remote
+                connection.destroy() if connection
+  
+            remote.on "end", ->
+              utils.debug "remote on end"
+              connection.end() if connection
+  
+            remote.on "error", (e)->
+              utils.debug "remote on error"
+              utils.error "remote #{remoteAddr}:#{remotePort} error: #{e}"
+  
+            remote.on "close", (had_error)->
+              utils.debug "remote on close:#{had_error}"
+              if had_error
+                connection.destroy() if connection
+              else
+                connection.end() if connection
+  
+            remote.on "drain", ->
+              utils.debug "remote on drain"
+              connection.resume() if connection
+  
+            remote.setTimeout timeout, ->
+              utils.debug "remote on timeout"
               remote.destroy() if remote
               connection.destroy() if connection
-
-          remote.on "end", ->
-            utils.debug "remote on end"
-            connection.end() if connection
-
-          remote.on "error", (e)->
-            utils.debug "remote on error"
-            utils.error "remote #{remoteAddr}:#{remotePort} error: #{e}"
-
-          remote.on "close", (had_error)->
-            utils.debug "remote on close:#{had_error}"
-            if had_error
-              connection.destroy() if connection
-            else
-              connection.end() if connection
-
-          remote.on "drain", ->
-            utils.debug "remote on drain"
-            connection.resume() if connection
-
-          remote.setTimeout timeout, ->
-            utils.debug "remote on timeout"
-            remote.destroy() if remote
-            connection.destroy() if connection
 
           if data.length > headerLength
             buf = new Buffer(data.length - headerLength)
@@ -259,7 +274,6 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
           stage = 4
           utils.debug "stage = 4"
         catch e
-          throw e
         # may encounter index out of range
           utils.error e
           connection.destroy() if connection
@@ -349,11 +363,12 @@ exports.main = ->
   KEY = config.password
   METHOD = config.method
   local_address = config.local_address
+  connections = config.connections or 1
   if not (SERVER and REMOTE_PORT and PORT and KEY)
     utils.warn 'config.json not found, you have to specify all config in commandline'
     process.exit 1
   timeout = Math.floor(config.timeout * 1000) or 600000
-  s = createServer SERVER, REMOTE_PORT, PORT, KEY, METHOD, timeout, local_address
+  s = createServer SERVER, REMOTE_PORT, PORT, KEY, METHOD, timeout, local_address, connections
   s.on "error", (e) ->
     process.stdout.on 'drain', ->
       process.exit 1

@@ -107,7 +107,7 @@ exports.main = ->
           client: false
         }, server)
        
-        conn._setVersion(3.0)
+        conn._setVersion(3.1)
         
         conn.on 'error', (err) ->
           console.error err

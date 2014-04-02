@@ -28,7 +28,8 @@ exports.parseArgs = ->
     '-k': 'password',
     '-c': 'config_file',
     '-m': 'method',
-    '-b': 'local_address'
+    '-b': 'local_address',
+    '-n': 'connections'
 
   result = {}
   nextIsValue = false
