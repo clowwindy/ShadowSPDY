@@ -174,7 +174,10 @@ exports.main = ->
                 )
                 remote.on "data", (data) ->
                   utils.log utils.EVERYTHING, "remote on data"
-                  remote.pause()  unless stream.write(data)
+                  if stream
+                    remote.pause()  unless stream.write(data)
+                  else
+                    remote.end() if remote
         
                 remote.on "end", ->
                   utils.debug "remote on end"
