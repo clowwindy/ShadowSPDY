@@ -23,36 +23,245 @@ spdy = require 'spdy'
 http = require 'http'
 net = require 'net'
 url = require 'url'
+path = require "path"
+utils = require "./utils"
+inet = require "./inet"
 
-conn = null
-
-server = net.createServer (socket) ->
-  console.log 'socket'
-  conn = new spdy.Connection(socket, {
-    isServer: true,
-    client: false
-  }, server)
+exports.main = ->
  
-  conn._setVersion(3.1)
+  console.log(utils.version)
   
-  conn.on 'error', (err) ->
-    console.error err
+  inetNtoa = (buf) ->
+    buf[0] + "." + buf[1] + "." + buf[2] + "." + buf[3]
+  inetAton = (ipStr) ->
+    parts = ipStr.split(".")
+    unless parts.length is 4
+      null
+    else
+      buf = new Buffer(4)
+      i = 0
+  
+      while i < 4
+        buf[i] = +parts[i]
+        i++
+      buf
+  
+  configFromArgs = utils.parseArgs()
+  configPath = 'config.json'
+  if configFromArgs.config_file
+    configPath = configFromArgs.config_file
+  if not fs.existsSync(configPath)
+    configPath = path.resolve(__dirname, "config.json")
+    if not fs.existsSync(configPath)
+      configPath = path.resolve(__dirname, "../../config.json")
+      if not fs.existsSync(configPath)
+        configPath = null
+  if configPath
+    utils.info 'loading config from ' + configPath
+    configContent = fs.readFileSync(configPath)
+    try
+      config = JSON.parse(configContent)
+    catch e
+      utils.error('found an error in config.json: ' + e.message)
+      process.exit 1
+  else
+    config = {}
+  for k, v of configFromArgs
+    config[k] = v
+  if config.verbose
+    utils.config(utils.DEBUG)
     
-  conn.on 'stream', (stream) ->
-    console.log 'stream'
-    stream.on 'data', (data) ->
-      console.log data.toString('binary')
-      stream.write 'hello world!\n'
-      stream.end()
-       
-    stream.on 'end', ->
-      stream.end()
-      console.log 'end'
-      
-    stream.on 'close', ->
-      console.log 'close'
-      stream.close()
-  
-server.listen 8488
+  utils.checkConfig config
 
+  timeout = Math.floor(config.timeout * 1000) or 600000
+  portPassword = config.port_password
+  port = config.server_port
+  key = config.password
+  METHOD = config.method
+  SERVER = config.server
+  
+  if not (SERVER and (port or portPassword) and key)
+    utils.warn 'config.json not found, you have to specify all config in commandline'
+    process.exit 1
+    
+  connections = 0
+  
+  if portPassword 
+    if port or key
+      utils.warn 'warning: port_password should not be used with server_port and password. server_port and password will be ignored'
+  else
+    portPassword = {}
+    portPassword[port.toString()] = key
+      
+    
+  for port, key of portPassword
+    (->
+      # let's use enclosures to seperate scopes of different servers
+      PORT = port
+      KEY = key
+      utils.info "calculating ciphers for port #{PORT}"
+
+      server = net.createServer((socket) ->
+        console.log 'socket'
+        conn = new spdy.Connection(socket, {
+          isServer: true,
+          client: false
+        }, server)
+       
+        conn._setVersion(3.0)
+        
+        conn.on 'error', (err) ->
+          console.error err
+          
+        conn.on 'stream', (stream) ->
+          console.log 'stream'
+          connections += 1
+          stage = 0
+          headerLength = 0
+          remote = null
+          cachedPieces = []
+          addrLen = 0
+          remoteAddr = null
+          remotePort = null
+          utils.debug "connections: #{connections}"
+          
+          clean = ->
+            utils.debug "clean"
+            connections -= 1
+            remote = null
+            stream = null
+            utils.debug "connections: #{connections}"
+    
+          stream.on "data", (data) ->
+            console.log data.length
+            utils.log utils.EVERYTHING, "connection on data"
+            if stage is 5
+              stream.pause()  unless remote.write(data)
+              return
+            if stage is 0
+              try
+                addrtype = data[0]
+                if addrtype is undefined
+                  return
+                if addrtype is 3
+                  addrLen = data[1]
+                else unless addrtype in [1, 4]
+                  utils.error "unsupported addrtype: " + addrtype + " maybe wrong password"
+                  stream.destroy()
+                  return
+                # read address and port
+                if addrtype is 1
+                  remoteAddr = inetNtoa(data.slice(1, 5))
+                  remotePort = data.readUInt16BE(5)
+                  headerLength = 7
+                else if addrtype is 4
+                  remoteAddr = inet.inet_ntop(data.slice(1, 17))
+                  remotePort = data.readUInt16BE(17)
+                  headerLength = 19
+                else
+                  remoteAddr = data.slice(2, 2 + addrLen).toString("binary")
+                  remotePort = data.readUInt16BE(2 + addrLen)
+                  headerLength = 2 + addrLen + 2
+                # connect remote server
+                remote = net.connect(remotePort, remoteAddr, ->
+                  utils.info "connecting #{remoteAddr}:#{remotePort}"
+                  i = 0
+        
+                  while i < cachedPieces.length
+                    piece = cachedPieces[i]
+                    remote.write piece
+                    i++
+                  cachedPieces = null # save memory
+                  stage = 5
+                  utils.debug "stage = 5"
+                )
+                remote.on "data", (data) ->
+                  utils.log utils.EVERYTHING, "remote on data"
+                  remote.pause()  unless stream.write(data)
+        
+                remote.on "end", ->
+                  utils.debug "remote on end"
+                  stream.end() if stream
+        
+                remote.on "error", (e)->
+                  utils.debug "remote on error"
+                  utils.error "remote #{remoteAddr}:#{remotePort} error: #{e}"
+     
+                remote.on "close", (had_error)->
+                  utils.debug "remote on close:#{had_error}"
+                  if had_error
+                    stream.destroy() if stream
+                  else
+                    stream.end() if stream
+        
+                remote.on "drain", ->
+                  utils.debug "remote on drain"
+                  stream.resume() if stream
+        
+                remote.setTimeout timeout, ->
+                  utils.debug "remote on timeout"
+                  remote.destroy() if remote
+                  stream.destroy() if stream
+        
+                if data.length > headerLength
+                  # make sure no data is lost
+                  buf = new Buffer(data.length - headerLength)
+                  data.copy buf, 0, headerLength
+                  cachedPieces.push buf
+                  buf = null
+                stage = 4
+                utils.debug "stage = 4"
+              catch e
+                # may encouter index out of range
+                utils.error e
+                stream.destroy()
+                remote.destroy()  if remote
+            else cachedPieces.push data  if stage is 4
+              # remote server not connected
+              # cache received buffers
+              # make sure no data is lost
+        
+          stream.on "end", ->
+            utils.debug "connection on end"
+            remote.end()  if remote
+         
+          stream.on "error", (e)->
+            utils.debug "connection on error"
+            utils.error "local error: #{e}"
+    
+          stream.on "close", (had_error)->
+            utils.debug "connection on close:#{had_error}"
+            if had_error
+              remote.destroy() if remote
+            else
+              remote.end() if remote
+            clean()
+        
+          stream.on "drain", ->
+            utils.debug "connection on drain"
+            remote.resume()  if remote
+        
+          stream.setTimeout timeout, ->
+            utils.debug "connection on timeout"
+            remote.destroy()  if remote
+            stream.destroy() if stream
+        )
+      servers = SERVER
+      unless servers instanceof Array
+        servers = [servers]
+      for server_ip in servers
+        server.listen PORT, server_ip, ->
+          utils.info "server listening at #{server_ip}:#{PORT} "
+        
+      server.on "error", (e) ->
+        if e.code is "EADDRINUSE"
+          utils.error "Address in use, aborting"
+        else
+          utils.error e
+        process.stdout.on 'drain', ->
+          process.exit 1
+    )()
+
+if require.main is module 
+  exports.main()
 

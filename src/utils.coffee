@@ -23,6 +23,12 @@ util = require 'util'
 exports.parseArgs = ->
   defination =
     '-b': 'local_address'
+    '-p': 'server_port'
+    '-s': 'server'
+    '-k': 'password',
+    '-c': 'config_file',
+    '-m': 'method',
+    '-b': 'local_address'
 
   result = {}
   nextIsValue = false
@@ -38,12 +44,12 @@ exports.parseArgs = ->
       result['verbose'] = true
   result
 
-#exports.checkConfig = (config) ->
-#  if config.server in ['127.0.0.1', 'localhost']
-#    exports.warn "Server is set to #{config.server}, maybe it's not correct"
-#    exports.warn "Notice server will listen at #{config.server}:#{config.server_port}"
-#  if (config.method or '').toLowerCase() == 'rc4'
-#    exports.warn 'RC4 is not safe; please use a safer cipher, like AES-256-CFB'
+exports.checkConfig = (config) ->
+  if config.server in ['127.0.0.1', 'localhost']
+    exports.warn "Server is set to #{config.server}, maybe it's not correct"
+    exports.warn "Notice server will listen at #{config.server}:#{config.server_port}"
+  if (config.method or '').toLowerCase() == 'rc4'
+    exports.warn 'RC4 is not safe; please use a safer cipher, like AES-256-CFB'
 
 exports.version = "shadowspdy v0.1.0"
 

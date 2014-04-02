@@ -1,2 +1,8 @@
 {
+    "server":"localhost",
+    "server_port":8488,
+    "local_port":1081,
+    "password":"Alphaville",
+    "timeout":600,
+    "method":"aes-256-cfb"
 }
