@@ -24,110 +24,35 @@ http = require 'http'
 net = require 'net'
 url = require 'url'
 
-encodeHeaders = (headers) ->
-  newHeaders = {}
-  for k, v of headers
-    k = k.toLowerCase()
-    if k in ["transfer-encoding", "connection", 'content-encoding']
-      newHeaders["sp-#{k}"] = v
-    else
-      newHeaders[k] = v
-  console.log newHeaders
-  newHeaders
+conn = null
 
-filterHeaders = (headers) ->
-  newHeaders = {}
-  for k, v of headers
-    ks = k.split('-')
-    newKs = []
-    for sep in ks
-      if sep.length > 0
-        sep = sep.charAt(0).toUpperCase() + sep.slice(1)
-      newKs.push sep
-    k = newKs.join '-'
-    newHeaders[k] = v
-  console.log newHeaders
-  newHeaders
+server = net.createServer (socket) ->
+  console.log 'socket'
+  conn = new spdy.Connection(socket, {
+    isServer: true,
+    client: false
+  }, server)
+ 
+  conn._setVersion(3.0)
+  
+  conn.on 'error', (err) ->
+    console.error err
     
-options = {
-  ssl: false,
-  plain: true,
-#  key: fs.readFileSync('key.pem'),
-#  cert: fs.readFileSync('cert.pem'),
-#  ca: fs.readFileSync(__dirname + '/keys/spdy-ca.pem'),
-  windowSize: 1024 * 1024, #
-
-# **optional** if true - server will send 3.1 frames on 3.0 *plain* spdy
-  autoSpdy31: false
-}
-
-server = spdy.createServer options, (req, res) ->
-  console.log 'req'
-  console.log res
-  if req.method.toLowerCase() == 'connect'
-    server.emit 'connect', req, res.connection
-    return
-  console.log req.method
-  srvUrl = url.parse(req.url)
-  console.log srvUrl
-  remoteReq = http.get({
-      hostname:srvUrl.hostname,
-      path:srvUrl.path,
-      port:(srvUrl.port or 80),
-      headers:filterHeaders(req.headers),
-      trailers:req.trailers,
-      httpVersion:req.httpVersion
-    }, (remoteRes) ->
-      console.log 'remote res'
-      res.writeHead remoteRes.statusCode, encodeHeaders(remoteRes.headers)
-      res.on 'data', (chunk) ->
-        console.log 'res on data'
-        remoteRes.write chunk
-      remoteRes.on 'data', (chunk) ->
-        console.log 'remote res on data'
-        console.log chunk.length
-        res.write chunk
-#      res.on 'end', ->
-#        console.log 'res on end'
-#        remoteRes.end()
-      remoteRes.on 'end', ->
-        console.log 'remote res on end'
-        res.end()
-  )
+  conn.on 'stream', (stream) ->
+    console.log 'stream'
+    stream.on 'data', (data) ->
+      console.log data.toString('binary')
+      stream.write 'hello world!\n'
+      stream.end()
+       
+    stream.on 'end', ->
+      stream.end()
+      console.log 'end'
+      
+    stream.on 'close', ->
+      console.log 'close'
+      stream.close()
+  
+server.listen 8488
 
 
-server.on 'connect', (req, socket) ->
-  # just proxy CONNECT method without doing anything
-  console.log 'connect'
-  srvUrl = url.parse(req.url)
-  srvSocket = net.connect(srvUrl.port, srvUrl.hostname, ->
-    console.log 'remote connect'
-    socket.write('HTTP/1.1 200 Connection Established\r\n' +
-                    'Proxy-agent: Spdy-Proxy\r\n' +
-                    '\r\n')
-    srvSocket.pipe(socket)
-    socket.pipe(srvSocket)
-  )
-
-server.listen 1443 
-
-#agent = spdy.createAgent({
-#  host: 'www.google.com',
-#  port: 443,
-#
-#  # Optional SPDY options
-#  spdy: {
-#    plain: false
-#    ssl: true
-#    version: 3 # Force SPDY version
-#  }
-#});
-#
-#http.get({
-#  host: 'www.google.com',
-#  agent: agent
-#}, (response) -> 
-#  console.log('yikes')
-#  console.log response
-#  agent.close()
-#).end()

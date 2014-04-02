@@ -19,132 +19,53 @@
 # SOFTWARE.
 
 fs = require 'fs'
+net = require 'net'
 spdy = require 'spdy'
-http = require 'http'
-url = require 'url'
+#http = require 'http'
 
-agent = null
-
-decodeHeaders = (headers) ->
-  newHeaders = {}
-  for k, v of headers
-    if k.indexOf('sp-') == 0
-      newHeaders[k.slice(3)] = v
-    else
-      newHeaders[k] = v
-  console.log newHeaders
-  newHeaders
-
-filterHeaders = (headers) ->
-  newHeaders = {}
-  for k, v of headers
-    if k not in ['Proxy-Connection', 'Connection', 'Keep-Alive']
-      newHeaders[k] = v
-  console.log newHeaders
-  newHeaders
-
-reloadAgent = ->
-  agent = spdy.createAgent(
-    host: '127.0.0.1',
-    port: 1443,
-    rejectUnauthorized: false,
-    requestCert: true,
-    spdy: {
-      plain: true
-      ssl: false
-#      plain: false
-#      ssl: true
-      version: 3 # Force SPDY version
-    }
-  )
-  agent.on 'error', (e) ->
-    console.error e
-
-reloadAgent()
-
-server = http.createServer (req, res) ->
-  srvUrl = url.parse(req.url)
-  console.log srvUrl
-  remoteReq = http.get({
-      agent:agent,
-      method:req.method,
-      hostname:srvUrl.hostname,
-      port:(srvUrl.port or 80),
-      path:srvUrl.href,
-      headers:filterHeaders(req.headers),
-      trailers:req.trailers,
-      httpVersion:req.httpVersion
-  }, (remoteRes) ->
-    console.log 'remote res'
-    res.writeHead remoteRes.statusCode, decodeHeaders(remoteRes.headers)
-    res.on 'data', (chunk) ->
-      console.log 'res on data'
-      remoteRes.write chunk
-    remoteRes.on 'data', (chunk) ->
-      console.log 'remote res on data'
-      console.log chunk.length
-      res.write chunk
-#    res.on 'end', ->
-#      console.log 'res on end'
-#      remoteRes.end()
-    remoteRes.on 'end', ->
-      console.log 'remote res on end'
-      res.end()
-  )
-  console.log 'req'
-
-server.on 'connect', (req, socket) ->
-  # just proxy CONNECT method without doing anything
-  console.log 'connect'
-  srvUrl = url.parse('http://' + req.url)
-  console.log srvUrl
-  remoteReq = http.request({
-      agent:agent,
-      method:'CONNECT',
-      hostname:srvUrl.hostname,
-      port:(srvUrl.port or 80),
-      path:srvUrl.href
+socket = net.connect {port: 8488}, ->
+  connection = new spdy.Connection(socket, {
+    isServer: false
   })
-  remoteReq.end()
-  remoteReq.on 'connect', (remoteRes, remoteSock, remoteHead) ->
-    console.log 'remote connect'
-    res.writeHead 200
-    res.on 'data', (chunk) ->
-      console.log 'res on data'
-      remoteRes.write chunk
-    remoteRes.on 'data', (chunk) ->
-      console.log 'remote res on data'
-      console.log chunk.length
-      res.write chunk
-#    res.on 'end', ->
-#      console.log 'res on end'
-#      remoteRes.end()
-    remoteRes.on 'end', ->
-      console.log 'remote res on end'
-      res.end()
-  console.log 'req'
-
+  connection._setVersion(3.0)
+  connection.on 'error', (err) ->
+    console.error err
+    
+  stream = new spdy.Stream(connection, {
+    id: 1,
+    priority: 7
+  })
   
-server.listen 8080 
-
-
-#agent = spdy.createAgent({
-#  host: 'www.google.com',
-#  port: 443,
-#
-#  # Optional SPDY options
-#  spdy: {
-#    plain: false
-#    ssl: true
-#    version: 3 # Force SPDY version
-#  }
-#});
-#
-#http.get({
-#  host: 'www.google.com',
-#  agent: agent
-#}, (response) -> 
-#  console.log('yikes')
-#  console.log response
-#  agent.close()
-#).end()
+  # a silly patch to send SYN_STREAM frame
+  headers = {}
+  state = stream._spdyState
+  connection._lock ->
+    state.framer.streamFrame state.id, 0, {
+      priority: 7
+    }, headers, (err, frame) ->
+      if (err) 
+        connection._unlock()
+        return self.emit('error', err)
+      connection.write(frame)
+      connection._unlock()
+      connection._addStream(stream)
+  
+      stream.emit('_spdyRequest')
+      state.initialized = true
+  
+  stream.on 'error', (err) ->
+    console.error err
+    
+  stream.on 'data', (data) ->
+    console.log data.toString('binary')
+    
+  stream.on 'end', ->
+    stream.end()
+    console.log 'end'
+    
+  stream.on 'close', ->
+    console.log 'close'
+    stream.close()
+    
+  stream.write('hi!\n')
+  
