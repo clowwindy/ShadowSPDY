@@ -2,7 +2,10 @@
     "name": "shadowspdy",
     "description": "a tunnel proxy using spdy as the tunnel",
     "keywords": ["SPDY", "proxy", "http", "https"],
-    "author": "clowwindy",
+    "author": {
+        "name":"clowwindy",
+        "email":"clowwindy42@gmail.com"
+    },
     "version": "0.1.0",
     "licenses": [{
         "type": "MIT",

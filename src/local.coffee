@@ -71,7 +71,6 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
     headers = {}
     state = stream._spdyState
     connection._lock ->
-      console.log state.id
       state.framer.streamFrame state.id, 0, {
         priority: 7
       }, headers, (err, frame) ->

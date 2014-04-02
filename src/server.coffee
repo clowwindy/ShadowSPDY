@@ -102,7 +102,6 @@ exports.main = ->
       utils.info "calculating ciphers for port #{PORT}"
 
       server = net.createServer((socket) ->
-        console.log 'socket'
         conn = new spdy.Connection(socket, {
           isServer: true,
           client: false
@@ -114,7 +113,6 @@ exports.main = ->
           console.error err
           
         conn.on 'stream', (stream) ->
-          console.log 'stream'
           connections += 1
           stage = 0
           headerLength = 0
@@ -133,7 +131,6 @@ exports.main = ->
             utils.debug "connections: #{connections}"
     
           stream.on "data", (data) ->
-            console.log data.length
             utils.log utils.EVERYTHING, "connection on data"
             if stage is 5
               stream.pause()  unless remote.write(data)
