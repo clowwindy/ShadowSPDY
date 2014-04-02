@@ -53,26 +53,39 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
       utils.debug 'return an existing connection'
       keys = Object.keys(_connections)
       index = Math.floor(Math.random() * keys.length)
-      process.nextTick ->
-        callback(_connections[keys[index]])
-      return _connections[keys[index]]
-    else
-      # return a new connection
-      utils.debug 'return a new connection'
-      _socket = net.connect {port: serverPort, host: serverAddr}, ->
-        connection = new spdy.Connection(_socket, {
-          isServer: false
-        })
-        connection._setVersion(3.1)
-        connection._connectionId = connectionIdCount
-        connectionIdCount += 1
-        _connections[connection._connectionId] = connection
-        connection.on 'error', (err) ->
-          utils.error 'connection error:'
-          utils.error err
-          connection.destroy()
-          delete _connections[connection.connectionId]
-        callback(connection)
+      connection = _connections[keys[index]]
+      if connection.writable
+        process.nextTick ->
+          callback(_connections[keys[index]])
+        return _connections[keys[index]]
+      else
+        delete _connections[connection.connectionId]
+    # return a new connection
+    utils.debug 'return a new connection'
+    connection = null
+    _socket = net.connect {port: serverPort, host: serverAddr}, ->
+      connection = new spdy.Connection(_socket, {
+        isServer: false
+      })
+      connection._setVersion(3.1)
+      connection._connectionId = connectionIdCount
+      connectionIdCount += 1
+      _connections[connection._connectionId] = connection
+      callback(connection)
+      _socket.on 'end', (err) ->
+        utils.error 'connection ended:'
+  #        connection.destroy()
+        delete _connections[connection._connectionId]
+      _socket.on 'close', (err) ->
+        delete _connections[connection._connectionId]
+    _socket.on 'error', (err) ->
+      utils.error 'connection error:'
+      utils.error err
+      if connection
+        delete _connections[connection._connectionId]
+      else
+        process.nextTick ->
+          callback(null)
     return null
    
   createStream = (connection, callback) ->
@@ -220,6 +233,9 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
           utils.info "connecting #{remoteAddr}:#{remotePort}"
 #          remote = net.connect(aPort, aServer, ->
           getConnection (aConnection) ->
+            if not aConnection?
+              connection.destroy() if connection
+              return
             remote = createStream(aConnection, ->
               addrToSendBuf = new Buffer(addrToSend, "binary")
               remote.write addrToSendBuf
