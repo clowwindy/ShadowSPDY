@@ -49,7 +49,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
   
   getConnection = (callback) ->
     # get a connection by random
-    if Object.keys(_connections).length >= connections
+    if Object.keys(_connections).length + 1 >= connections
       utils.debug 'return an existing connection'
       keys = Object.keys(_connections)
       index = Math.floor(Math.random() * keys.length)
