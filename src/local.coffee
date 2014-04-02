@@ -27,7 +27,7 @@ socket = net.connect {port: 8488}, ->
   connection = new spdy.Connection(socket, {
     isServer: false
   })
-  connection._setVersion(3.0)
+  connection._setVersion(3.1)
   connection.on 'error', (err) ->
     console.error err
     
