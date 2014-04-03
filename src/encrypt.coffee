@@ -87,16 +87,21 @@ ShadowStream = (source, method, password) ->
   
   if method not of method_supported
     throw new Error("method #{method} not supported")
+    
+  method = method.toLowerCase()
+  
   @_source = source
   @_method = method
   @_password = password
-  @_sendState = 0
-  @_receiveState = 0
-  @_sendIV = new Buffer(32)
-  @_receiveIV = new Buffer(32)
+  @_IVSent = false
+  @_IVBytesReceived = 0
 
   m = getCipherLen(method)
-  [@key, iv_] = EVP_BytesToKey(password, m[0], m[1])
+  [@_key, iv_] = EVP_BytesToKey password, m[0], m[1]
+  @_sendIV = crypto.randomBytes m[1]
+  @_cipher = crypto.createCipheriv method, @_key, @_sendIV
+  @_receiveIV = new Buffer(m[1])
+  @_IVBytesToReceive = m[1]
   
   @timeout = source.timeout
   
@@ -128,22 +133,34 @@ ShadowStream = (source, method, password) ->
 util.inherits(ShadowStream, DuplexStream)
 
 ShadowStream.prototype._read = (bytes) ->
-  console.log '_read'
   chunk = @_source.read()
-  console.log chunk
-  
   if chunk == null
     return @push('')
   
-  @push chunk
+  decipherStart = 0
+  if @_IVBytesReceived < @_IVBytesToReceive
+    # copy IV from chunk into @_receiveIV
+    # the data left starts from decipherStart
+    decipherStart = chunk.copy @_receiveIV, @_IVBytesReceived
+    @_IVBytesReceived += decipherStart 
+  if @_IVBytesReceived < @_IVBytesToReceive
+    return
+  if not @_decipher?
+    @_decipher = crypto.createDecipheriv @_method, @_key, @_receiveIV
+  if decipherStart > 0
+    cipher = chunk.slice decipherStart
+  if cipher.length > 0
+    plain = @_decipher.update cipher
+    @push plain
 
 ShadowStream.prototype._write = (chunk, encoding, callback) ->
-  console.log '_write'
-  console.log chunk
   if chunk instanceof String
     chunk = new Buffer(chunk, encoding)
   try
-    @_source.write chunk
+    cipher = @_cipher.update chunk
+    if not @_IVSent
+      cipher = Buffer.concat [@_sendIV, cipher]
+    @_source.write cipher
   catch e
     return callback(e)
   callback()
