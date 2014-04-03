@@ -112,7 +112,7 @@ exports.main = ->
         conn._setVersion(3.1)
         
         conn.on 'error', (err) ->
-          console.error err
+          utils.error err
           
         conn.on 'stream', (stream) ->
           connections += 1
