@@ -18,7 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 # table encryption is not supported now
 
 crypto = require("crypto")
@@ -26,7 +25,6 @@ tls = require("tls")
 util = require("util")
 stream = require('stream')
 int32Max = Math.pow(2, 32)
-
 
 bytes_to_key_results = {}
 
@@ -79,102 +77,96 @@ getCipherLen = (method) ->
   m = method_supported[method]
   return m
 
+class ShadowStream extends stream.Duplex
+  constructor: (source, method, password) ->
+    super()
   
-DuplexStream = stream.Duplex
-
-ShadowStream = (source, method, password) ->
-  DuplexStream.call this
-  
-  if method not of method_supported
-    throw new Error("method #{method} not supported")
+    if method not of method_supported
+      throw new Error("method #{method} not supported")
+      
+    method = method.toLowerCase()
     
-  method = method.toLowerCase()
+    @_source = source
+    @_method = method
+    @_password = password
+    @_IVSent = false
+    @_IVBytesReceived = 0
   
-  @_source = source
-  @_method = method
-  @_password = password
-  @_IVSent = false
-  @_IVBytesReceived = 0
-
-  m = getCipherLen(method)
-  [@_key, iv_] = EVP_BytesToKey password, m[0], m[1]
-  @_sendIV = crypto.randomBytes m[1]
-  @_cipher = crypto.createCipheriv method, @_key, @_sendIV
-  @_receiveIV = new Buffer(m[1])
-  @_IVBytesToReceive = m[1]
-  
-  @timeout = source.timeout
-  
-  self = this
-  
-  source.on 'connect', ->
-    self.emit 'connect'
-  
-  source.on 'end', ->
-    self.push null
-  
-  source.on 'readable', ->
-    self.read(0)
+    m = getCipherLen(method)
+    [@_key, iv_] = EVP_BytesToKey password, m[0], m[1]
+    @_sendIV = crypto.randomBytes m[1]
+    @_cipher = crypto.createCipheriv method, @_key, @_sendIV
+    @_receiveIV = new Buffer(m[1])
+    @_IVBytesToReceive = m[1]
     
-  source.on 'error', (err) ->
-    self.emit 'error', err
+    @timeout = source.timeout
     
-  source.on 'timeout', ->
-    self.emit 'timeout'
-  
-  source.on 'close', ->
-    self.emit 'close'
+    self = this
     
-  return this
+    source.on 'connect', ->
+      self.emit 'connect'
+    
+    source.on 'end', ->
+      self.push null
+    
+    source.on 'readable', ->
+      self.read(0)
+      
+    source.on 'error', (err) ->
+      self.emit 'error', err
+      
+    source.on 'timeout', ->
+      self.emit 'timeout'
+    
+    source.on 'close', ->
+      self.emit 'close'
 
-util.inherits(ShadowStream, DuplexStream)
-
-ShadowStream.prototype._read = (bytes) ->
-  chunk = @_source.read()
-  if chunk == null
-    return @push('')
-  if chunk.length == 0
-    return @push(chunk)
-
-  decipherStart = 0
-  if @_IVBytesReceived < @_IVBytesToReceive
-    # copy IV from chunk into @_receiveIV
-    # the data left starts from decipherStart
-    decipherStart = chunk.copy @_receiveIV, @_IVBytesReceived
-    @_IVBytesReceived += decipherStart
-  if @_IVBytesReceived < @_IVBytesToReceive
-    return
-  if not @_decipher?
-    @_decipher = crypto.createDecipheriv @_method, @_key, @_receiveIV
-  if decipherStart > 0
-    cipher = chunk.slice decipherStart
-  else
-    cipher = chunk
-  if cipher.length > 0
-    plain = @_decipher.update cipher
-    @push plain
-
-ShadowStream.prototype._write = (chunk, encoding, callback) ->
-  if chunk instanceof String
-    chunk = new Buffer(chunk, encoding)
-  try
-    cipher = @_cipher.update chunk
-    if not @_IVSent
-      @_IVSent = true
-      cipher = Buffer.concat [@_sendIV, cipher]
-    @_source.write cipher
-  catch e
-    return callback(e)
-  callback()
-
-ShadowStream.prototype.end = (data) ->
-  @_source.end data
+  _read: (bytes) ->
+    chunk = @_source.read()
+    if chunk == null
+      return @push('')
+    if chunk.length == 0
+      return @push(chunk)
   
-ShadowStream.prototype.destroy = ->
-  @_source.destroy()
-
-ShadowStream.prototype.setTimeout = (timeout) ->
-  @_source.setTimeout(timeout)
+    decipherStart = 0
+    if @_IVBytesReceived < @_IVBytesToReceive
+      # copy IV from chunk into @_receiveIV
+      # the data left starts from decipherStart
+      decipherStart = chunk.copy @_receiveIV, @_IVBytesReceived
+      @_IVBytesReceived += decipherStart
+    if @_IVBytesReceived < @_IVBytesToReceive
+      return
+    if not @_decipher?
+      @_decipher = crypto.createDecipheriv @_method, @_key, @_receiveIV
+    if decipherStart > 0
+      cipher = chunk.slice decipherStart
+    else
+      cipher = chunk
+    if cipher.length > 0
+      plain = @_decipher.update cipher
+      @push plain
+  
+  _write: (chunk, encoding, callback) ->
+    if chunk instanceof String
+      chunk = new Buffer(chunk, encoding)
+    try
+      cipher = @_cipher.update chunk
+      if not @_IVSent
+        @_IVSent = true
+        cipher = Buffer.concat [@_sendIV, cipher]
+      @_source.write cipher
+    catch e
+      return callback(e)
+    callback()
+  
+  end: (data) ->
+    @_source.end data
+    
+  destroy: ->
+    @_source.destroy()
+  
+  setTimeout: (timeout) ->
+    @_source.setTimeout(timeout)
 
 exports.ShadowStream = ShadowStream
 
