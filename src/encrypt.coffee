@@ -111,15 +111,12 @@ ShadowStream = (source, method, password) ->
     self.emit 'connect'
   
   source.on 'end', ->
-    console.log 'source on end'
     self.push null
   
   source.on 'readable', ->
-    console.log 'source on readable'
     self.read(0)
     
   source.on 'error', (err) ->
-    console.log 'self error'
     self.emit 'error', err
     
   source.on 'timeout', ->
@@ -136,19 +133,23 @@ ShadowStream.prototype._read = (bytes) ->
   chunk = @_source.read()
   if chunk == null
     return @push('')
-  
+  if chunk.length == 0
+    return @push(chunk)
+
   decipherStart = 0
   if @_IVBytesReceived < @_IVBytesToReceive
     # copy IV from chunk into @_receiveIV
     # the data left starts from decipherStart
     decipherStart = chunk.copy @_receiveIV, @_IVBytesReceived
-    @_IVBytesReceived += decipherStart 
+    @_IVBytesReceived += decipherStart
   if @_IVBytesReceived < @_IVBytesToReceive
     return
   if not @_decipher?
     @_decipher = crypto.createDecipheriv @_method, @_key, @_receiveIV
   if decipherStart > 0
     cipher = chunk.slice decipherStart
+  else
+    cipher = chunk
   if cipher.length > 0
     plain = @_decipher.update cipher
     @push plain
@@ -159,6 +160,7 @@ ShadowStream.prototype._write = (chunk, encoding, callback) ->
   try
     cipher = @_cipher.update chunk
     if not @_IVSent
+      @_IVSent = true
       cipher = Buffer.concat [@_sendIV, cipher]
     @_source.write cipher
   catch e
@@ -175,24 +177,4 @@ ShadowStream.prototype.setTimeout = (timeout) ->
   @_source.setTimeout(timeout)
 
 exports.ShadowStream = ShadowStream
-
-test = ->
-  net = require 'net'
-  server = net.createServer (conn) ->
-    s = new ShadowStream(conn, 'aes-256-cfb', 'foobar')
-    s.on 'data', (data) ->
-      console.log data.toString()
-    s.on 'end', ->
-      console.log 'server end'
-      s.end()
-      server.close()
-  server.listen 8888
-  cli = net.connect 8888, 'localhost',  ->
-    s = new ShadowStream(cli, 'aes-256-cfb', 'foobar')
-    s.write 'hello'
-    s.end('world')
-  cli.on 'end', ->
-    console.log 'cli end'
-    cli.end()
-    
 
