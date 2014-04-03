@@ -118,8 +118,8 @@ class ShadowStream extends stream.Duplex
     source.on 'timeout', ->
       self.emit 'timeout'
     
-    source.on 'close', ->
-      self.emit 'close'
+    source.on 'close', (hadError) ->
+      self.emit 'close', hadError
 
   _read: (bytes) ->
     chunk = @_source.read()

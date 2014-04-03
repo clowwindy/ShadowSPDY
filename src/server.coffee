@@ -135,7 +135,7 @@ exports.main = ->
           stream.on "data", (data) ->
             utils.log utils.EVERYTHING, "connection on data"
             if stage is 5
-              stream.pause()  unless remote.write(data)
+#              stream.pause()  unless remote.write(data)
               return
             if stage is 0
               try
@@ -174,17 +174,17 @@ exports.main = ->
                   stage = 5
                   utils.debug "stage = 5"
                 )
-                remote.on "data", (data) ->
-                  utils.log utils.EVERYTHING, "remote on data"
-                  if stream
-                    remote.pause()  unless stream.write(data)
-                  else
-                    remote.end() if remote
-        
-                remote.on "end", ->
-                  utils.debug "remote on end"
-                  stream.end() if stream
-        
+#                remote.on "data", (data) ->
+#                  utils.log utils.EVERYTHING, "remote on data"
+#                  if stream
+#                    remote.pause()  unless stream.write(data)
+#                  else
+#                    remote.end() if remote
+#        
+#                remote.on "end", ->
+#                  utils.debug "remote on end"
+#                  stream.end() if stream
+       
                 remote.on "error", (e)->
                   utils.debug "remote on error"
                   utils.error "remote #{remoteAddr}:#{remotePort} error: #{e}"
@@ -196,9 +196,9 @@ exports.main = ->
                   else
                     stream.end() if stream
         
-                remote.on "drain", ->
-                  utils.debug "remote on drain"
-                  stream.resume() if stream
+#                remote.on "drain", ->
+#                  utils.debug "remote on drain"
+#                  stream.resume() if stream
         
                 remote.setTimeout timeout, ->
                   utils.debug "remote on timeout"
@@ -211,6 +211,10 @@ exports.main = ->
                   data.copy buf, 0, headerLength
                   cachedPieces.push buf
                   buf = null
+                           
+                remote.pipe stream
+                stream.pipe remote
+        
                 stage = 4
                 utils.debug "stage = 4"
               catch e
@@ -223,13 +227,13 @@ exports.main = ->
               # cache received buffers
               # make sure no data is lost
         
-          stream.on "end", ->
-            utils.debug "connection on end"
-            remote.end()  if remote
-         
-          stream.on "error", (e)->
-            utils.debug "connection on error"
-            utils.error "local error: #{e}"
+#          stream.on "end", ->
+#            utils.debug "connection on end"
+#            remote.end()  if remote
+#         
+#          stream.on "error", (e)->
+#            utils.debug "connection on error"
+#            utils.error "local error: #{e}"
     
           stream.on "close", (had_error)->
             utils.debug "connection on close:#{had_error}"
@@ -239,9 +243,9 @@ exports.main = ->
               remote.end() if remote
             clean()
         
-          stream.on "drain", ->
-            utils.debug "connection on drain"
-            remote.resume()  if remote
+#          stream.on "drain", ->
+#            utils.debug "connection on drain"
+#            remote.resume()  if remote
         
           stream.setTimeout timeout, ->
             utils.debug "connection on timeout"

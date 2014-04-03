@@ -163,7 +163,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
       utils.log utils.EVERYTHING, "connection on data"
       if stage is 5
         # pipe sockets
-        connection.pause()  unless remote.write(data)
+#        connection.pause()  unless remote.write(data)
         return
       if stage is 0
         tempBuf = new Buffer(2)
@@ -254,18 +254,19 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
               stage = 5
               utils.debug "stage = 5"
             )
-            remote.on "data", (data) ->
-              utils.log utils.EVERYTHING, "remote on data"
-              try
-                remote.pause()  unless connection.write(data)
-              catch e
-                utils.error e
-                remote.destroy() if remote
-                connection.destroy() if connection
-  
-            remote.on "end", ->
-              utils.debug "remote on end"
-              connection.end() if connection
+           
+#            remote.on "data", (data) ->
+#              utils.log utils.EVERYTHING, "remote on data"
+#              try
+#                remote.pause()  unless connection.write(data)
+#              catch e
+#                utils.error e
+#                remote.destroy() if remote
+#                connection.destroy() if connection
+#  
+#            remote.on "end", ->
+#              utils.debug "remote on end"
+#              connection.end() if connection
   
             remote.on "error", (e)->
               utils.debug "remote on error"
@@ -277,15 +278,19 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
                 connection.destroy() if connection
               else
                 connection.end() if connection
-  
-            remote.on "drain", ->
-              utils.debug "remote on drain"
-              connection.resume() if connection
+#  
+#            remote.on "drain", ->
+#              utils.debug "remote on drain"
+#              connection.resume() if connection
   
             remote.setTimeout timeout, ->
               utils.debug "remote on timeout"
               remote.destroy() if remote
               connection.destroy() if connection
+               
+            remote.pipe connection
+            connection.pipe remote
+            
 
           if data.length > headerLength
             buf = new Buffer(data.length - headerLength)
@@ -305,14 +310,14 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
     # cache received buffers
     # make sure no data is lost
 
-    connection.on "end", ->
-      utils.debug "connection on end"
-      remote.end()  if remote
+#    connection.on "end", ->
+#      utils.debug "connection on end"
+#      remote.end()  if remote
 
     connection.on "error", (e)->
       utils.debug "connection on error"
       utils.error "local error: #{e}"
-
+    
     connection.on "close", (had_error)->
       utils.debug "connection on close:#{had_error}"
       if had_error
@@ -321,10 +326,10 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
         remote.end() if remote
       clean()
 
-    connection.on "drain", ->
-      # calling resume() when remote not is connected will crash node.js
-      utils.debug "connection on drain"
-      remote.resume() if remote and stage is 5
+#    connection.on "drain", ->
+#      # calling resume() when remote not is connected will crash node.js
+#      utils.debug "connection on drain"
+#      remote.resume() if remote and stage is 5
 
     connection.setTimeout timeout, ->
       utils.debug "connection on timeout"
