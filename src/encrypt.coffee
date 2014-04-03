@@ -1,4 +1,4 @@
-# Copyright (c) 2013 clowwindy
+# Copyright (c) 2014 clowwindy
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,57 +18,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+
+# table encryption is not supported now
+
 crypto = require("crypto")
+tls = require("tls")
 util = require("util")
-merge_sort = require("./merge_sort").merge_sort
+stream = require('stream')
 int32Max = Math.pow(2, 32)
 
-cachedTables = {} # password: [encryptTable, decryptTable]
-
-getTable = (key) ->
-  if cachedTables[key]
-    return cachedTables[key]
-  util.log "calculating ciphers"
-  table = new Array(256)
-  decrypt_table = new Array(256)
-  md5sum = crypto.createHash("md5")
-  md5sum.update key
-  hash = new Buffer(md5sum.digest(), "binary")
-  al = hash.readUInt32LE(0)
-  ah = hash.readUInt32LE(4)
-  i = 0
-
-  while i < 256
-    table[i] = i
-    i++
-  i = 1
-
-  while i < 1024
-    table = merge_sort(table, (x, y) ->
-      ((ah % (x + i)) * int32Max + al) % (x + i) - ((ah % (y + i)) * int32Max + al) % (y + i)
-    )
-    i++
-  i = 0
-  while i < 256
-    decrypt_table[table[i]] = i
-    ++i
-  result = [table, decrypt_table]
-  cachedTables[key] = result
-  result
-  
-substitute = (table, buf) ->
-  i = 0
-
-  while i < buf.length
-    buf[i] = table[buf[i]]
-    i++
-  buf
-
-to_buffer = (input) ->
-  if input.copy?
-    return input
-  else
-    return new Buffer(input, 'binary')
 
 bytes_to_key_results = {}
 
@@ -110,94 +68,94 @@ method_supported =
   'rc4': [16, 0]
   'seed-cfb': [16, 16]
 
+  
+DuplexStream = stream.Duplex
 
-class Encryptor
-  constructor: (@key, @method) ->
-    @iv_sent = false
-    if @method == 'table'
-      @method = null
-    if @method?
-      @cipher = @get_cipher(@key, @method, 1, crypto.randomBytes(32))
-    else
-      [@encryptTable, @decryptTable] = getTable(@key)
-      
-  get_cipher_len: (method) ->
-    method = method.toLowerCase()
-    m = method_supported[method]
-    return m
+ShadowStream = (source, method, password) ->
+  DuplexStream.call this
+  
+  if method not of method_supported
+    throw new Error("method #{method} not supported")
+  this._source = source
+  this._method = method
+  this._password = password
+  this._sendState = 0
+  this._receiveState = 0
+  this._sendIV = new Buffer(32)
+  this._receiveIV = new Buffer(32)
+  
+  this.timeout = source.timeout
+  
+  self = this
+  
+  source.on 'connect', ->
+    self.emit 'connect'
+  
+  source.on 'end', ->
+    console.log 'source on end'
+    self.push null
+  
+  source.on 'readable', ->
+    console.log 'source on readable'
+    self.read(0)
+    
+  source.on 'error', (err) ->
+    self.emit 'error', err
+    
+  source.on 'timeout', ->
+    self.emit 'timeout'
+  
+  source.on 'close', ->
+    self.emit 'close'
+    
+  return this
 
-  get_cipher: (password, method, op, iv) ->
-    method = method.toLowerCase()
-    password = Buffer(password, 'binary')
-    m = @get_cipher_len(method)
-    if m?
-      [key, iv_] = EVP_BytesToKey(password, m[0], m[1])
-      if not iv?
-        iv = iv_
-      if op == 1
-        @cipher_iv = iv.slice(0, m[1])
-      iv = iv.slice(0, m[1])
-      if op == 1
-        return crypto.createCipheriv(method, key, iv)
-      else
-        return crypto.createDecipheriv(method, key, iv)
+util.inherits(ShadowStream, DuplexStream)
 
-  encrypt: (buf) ->
-    if @method?
-      result = to_buffer @cipher.update(buf.toString('binary'))
-      if @iv_sent
-        return result
-      else
-        @iv_sent = true
-        return Buffer.concat([@cipher_iv, result])
-    else
-      substitute @encryptTable, buf
-      
-  decrypt: (buf) ->
-    if @method?
-      if not @decipher?
-        decipher_iv_len = @get_cipher_len(@method)[1]
-        decipher_iv = buf.slice(0, decipher_iv_len) 
-        @decipher = @get_cipher(@key, @method, 0, decipher_iv)
-        result = to_buffer @decipher.update(buf.slice(decipher_iv_len).toString('binary'))
-        return result
-      else
-        result = to_buffer @decipher.update(buf.toString('binary'))
-        return result
-    else
-      substitute @decryptTable, buf
+ShadowStream.prototype._read = (bytes) ->
+  console.log '_read'
+  chunk = this._source.read()
+  console.log chunk
+  
+  if chunk == null
+    return this.push('')
+  
+  this.push chunk
 
-encryptAll = (password, method, op, data) ->
-  if method == 'table'
-    method = null
-  if not method?
-    [encryptTable, decryptTable] = getTable(password)
-    if op is 0
-      return substitute(decryptTable, data)
-    else
-      return substitute(encryptTable, data)
-  else
-    result = []
-    method = method.toLowerCase()
-    [keyLen, ivLen] = method_supported[method]
-    password = Buffer(password, 'binary')
-    [key, iv_] = EVP_BytesToKey(password, keyLen, ivLen) 
-    if op == 1
-      iv = crypto.randomBytes ivLen
-      result.push iv
-    else
-      iv = data.slice 0, ivLen
-      data = data.slice ivLen
-    if op == 1
-      cipher = crypto.createCipheriv(method, key, iv)
-    else
-      cipher = crypto.createDecipheriv(method, key, iv)
-    result.push cipher.update(data)
-    result.push cipher.final()
-    return Buffer.concat result
+ShadowStream.prototype._write = (chunk, encoding, callback) ->
+  console.log '_write'
+  console.log chunk
+  if chunk instanceof String
+    chunk = new Buffer(chunk, encoding)
+  this._source.write chunk
+  callback()
 
+ShadowStream.prototype.end = (data) ->
+  this._source.end data
+  
+ShadowStream.prototype.destroy = ->
+  this._source.destroy()
 
-exports.Encryptor = Encryptor
-exports.getTable = getTable
-exports.encryptAll = encryptAll
+exports.ShadowStream = ShadowStream
 
+test = ->
+  net = require 'net'
+  server = net.createServer (conn) ->
+    s = new ShadowStream(conn, 'aes-256-cfb', 'foobar')
+    s.on 'data', (data) ->
+      console.log data.toString()
+    s.on 'end', ->
+      console.log 'server end'
+      s.end()
+      server.close()
+  server.listen 8888
+  cli = net.connect 8888, 'localhost',  ->
+    s = new ShadowStream(cli, 'aes-256-cfb', 'foobar')
+    s.write 'hello'
+    s.end('world')
+  cli.on 'end', ->
+    console.log 'cli end'
+    cli.end()
+    
+
+test() 
