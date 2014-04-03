@@ -103,7 +103,7 @@ exports.main = ->
       utils.info "calculating ciphers for port #{PORT}"
 
       server = net.createServer((socket) ->
-        socket = new encrypt.ShadowStream socket, 'aes-256-cfb', 'password'
+        socket = new encrypt.ShadowStream socket, METHOD, KEY
         conn = new spdy.Connection(socket, {
           isServer: true,
           client: false
@@ -231,9 +231,9 @@ exports.main = ->
 #            utils.debug "connection on end"
 #            remote.end()  if remote
 #         
-#          stream.on "error", (e)->
-#            utils.debug "connection on error"
-#            utils.error "local error: #{e}"
+          stream.on "error", (e)->
+            utils.debug "connection on error"
+            utils.error "local error: #{e}"
     
           stream.on "close", (had_error)->
             utils.debug "connection on close:#{had_error}"

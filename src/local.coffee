@@ -81,7 +81,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
         delete _connections[connection._connectionId]
       connection.on 'error', (err) ->
         utils.error err
-    _socket = new encrypt.ShadowStream _socket, 'aes-256-cfb', 'password'
+    _socket = new encrypt.ShadowStream _socket, method, key
     _socket.on 'error', (err) ->
       utils.error 'connection error:'
       utils.error err
