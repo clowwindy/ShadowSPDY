@@ -1,5 +1,5 @@
 {
-    "server":"localhost",
+    "server":"127.0.0.1",
     "server_port":8488,
     "local_port":1081,
     "password":"Alphaville",

@@ -24,6 +24,7 @@ http = require 'http'
 net = require 'net'
 url = require 'url'
 path = require "path"
+encrypt = require './encrypt'
 utils = require "./utils"
 inet = require "./inet"
 
@@ -102,6 +103,7 @@ exports.main = ->
       utils.info "calculating ciphers for port #{PORT}"
 
       server = net.createServer((socket) ->
+        socket = new encrypt.ShadowStream socket, 'aes-256-cfb', 'password'
         conn = new spdy.Connection(socket, {
           isServer: true,
           client: false

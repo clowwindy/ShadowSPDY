@@ -136,6 +136,9 @@ ShadowStream.prototype.end = (data) ->
 ShadowStream.prototype.destroy = ->
   this._source.destroy()
 
+ShadowStream.prototype.setTimeout = (timeout) ->
+  this._source.setTimeout(timeout)
+
 exports.ShadowStream = ShadowStream
 
 test = ->
@@ -158,4 +161,3 @@ test = ->
     cli.end()
     
 
-test() 

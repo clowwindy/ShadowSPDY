@@ -21,6 +21,7 @@
 fs = require 'fs'
 net = require 'net'
 spdy = require 'spdy'
+encrypt = require './encrypt'
 utils = require './utils'
 inet = require './inet'
 #http = require 'http'
@@ -49,7 +50,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
   
   getConnection = (callback) ->
     # get a connection by random
-    if Object.keys(_connections).length + 1 >= connections
+    if Object.keys(_connections).length + 1 > connections
       utils.debug 'return an existing connection'
       keys = Object.keys(_connections)
       index = Math.floor(Math.random() * keys.length)
@@ -78,6 +79,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
         delete _connections[connection._connectionId]
       _socket.on 'close', (err) ->
         delete _connections[connection._connectionId]
+    _socket = new encrypt.ShadowStream _socket, 'aes-256-cfb', 'password'
     _socket.on 'error', (err) ->
       utils.error 'connection error:'
       utils.error err
@@ -291,6 +293,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
           utils.debug "stage = 4"
         catch e
         # may encounter index out of range
+          throw e
           utils.error e
           connection.destroy() if connection
           remote.destroy() if remote
