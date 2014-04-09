@@ -253,6 +253,10 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
                 remote.write piece
                 i++
               cachedPieces = null # save memory
+               
+              remote.pipe connection
+              connection.pipe remote
+            
               stage = 5
               utils.debug "stage = 5"
             )
@@ -289,10 +293,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
               utils.debug "remote on timeout"
               remote.destroy() if remote
               connection.destroy() if connection
-               
-            remote.pipe connection
-            connection.pipe remote
-            
+              
 
           if data.length > headerLength
             buf = new Buffer(data.length - headerLength)

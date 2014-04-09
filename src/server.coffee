@@ -173,6 +173,10 @@ exports.main = ->
                     remote.write piece
                     i++
                   cachedPieces = null # save memory
+                           
+                  remote.pipe stream
+                  stream.pipe remote
+        
                   stage = 5
                   utils.debug "stage = 5"
                 )
@@ -213,10 +217,7 @@ exports.main = ->
                   data.copy buf, 0, headerLength
                   cachedPieces.push buf
                   buf = null
-                           
-                remote.pipe stream
-                stream.pipe remote
-        
+                  
                 stage = 4
                 utils.debug "stage = 4"
               catch e
