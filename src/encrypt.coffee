@@ -163,9 +163,10 @@ class ShadowStream extends stream.Duplex
   
   end: (data) ->
     if data? and data.length > 0
+      data = @_cipher.update data
       if not @_IVSent
         @_IVSent = true
-        cipher = Buffer.concat [@_sendIV, cipher]
+        data = Buffer.concat [@_sendIV, data]
       @_source.end cipher
     else
       @_source.end
