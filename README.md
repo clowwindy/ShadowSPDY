@@ -1,5 +1,6 @@
 ShadowSPDY
 ==========
+[![Build Status](https://travis-ci.org/clowwindy/ShadowSPDY-nodejs.svg?branch=master)](https://travis-ci.org/clowwindy/ShadowSPDY)
 
 ShadowSPDY is a tunnel proxy which can help you get through firewalls. It is a
  variation of [Shadowsocks][1].
@@ -10,6 +11,8 @@ Usage
 ShadowSPDY is currently beta. Future versions may NOT be compatible with this 
 version.
 
+You can submit bugs and issues on the [issue tracker][2].
+
 For those who are willing to help developing or testing, here's the manual.
 
     # install node.js v0.10 from http://nodejs.org/ first
@@ -19,8 +22,6 @@ For those who are willing to help developing or testing, here's the manual.
     vim config.json
     bin/splocal  # or bin/spserver
     # then point your browser proxy into "socks5 127.0.0.1:1081"
-
-You can submit bugs and issues on the [issue tracker][2].
 
 Protocol
 --------
