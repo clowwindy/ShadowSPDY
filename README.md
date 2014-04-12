@@ -1,6 +1,6 @@
 ShadowSPDY
 ==========
-[![Build Status](https://travis-ci.org/clowwindy/ShadowSPDY-nodejs.svg?branch=master)](https://travis-ci.org/clowwindy/ShadowSPDY)
+[![Build Status](https://travis-ci.org/clowwindy/ShadowSPDY.svg?branch=master)](https://travis-ci.org/clowwindy/ShadowSPDY)
 
 ShadowSPDY is a tunnel proxy which can help you get through firewalls. It is a
  variation of [Shadowsocks][1].
