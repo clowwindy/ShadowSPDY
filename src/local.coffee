@@ -26,7 +26,7 @@ spdy = require 'spdy'
 encrypt = require './encrypt'
 utils = require './utils'
 inet = require './inet'
-#http = require 'http'
+strategy = require './strategy'
 
 inetNtoa = (buf) ->
   buf[0] + "." + buf[1] + "." + buf[2] + "." + buf[3]
@@ -49,6 +49,7 @@ streamIdCount = 1
 
 createServer = (serverAddr, serverPort, port, key, method, timeout, local_address=null, connections=1) ->
   _connections = {}
+  new strategy.WindowSizeStrategy _connections, {}
   
   getConnection = (callback) ->
     # get a connection by random

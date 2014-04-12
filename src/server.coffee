@@ -166,6 +166,8 @@ exports.main = ->
                 # connect remote server
                 remote = net.connect(remotePort, remoteAddr, ->
                   utils.info "connecting #{remoteAddr}:#{remotePort}"
+                  if not remote?
+                    return
                   i = 0
         
                   while i < cachedPieces.length

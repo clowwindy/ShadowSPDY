@@ -3,6 +3,6 @@
     "server_port":8488,
     "local_port":1081,
     "password":"Alphaville",
-    "timeout":600,
+    "timeout":300,
     "method":"aes-256-cfb"
 }
