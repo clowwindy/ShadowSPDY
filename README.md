@@ -2,8 +2,8 @@ ShadowSPDY
 ==========
 [![Build Status][1]][2]
 
-ShadowSPDY is a tunnel proxy which can help you get through firewalls. It is a
- variation of [Shadowsocks][3].
+ShadowSPDY is a tunnel proxy, which builds on top of [Shadowsocks][3] and 
+[SPDY][4].
  
 Usage
 -----
@@ -11,7 +11,7 @@ Usage
 ShadowSPDY is currently beta. Future versions may NOT be compatible with this 
 version.
 
-You can submit bugs and issues on the [issue tracker][4].
+You can submit bugs and issues on the [issue tracker][5].
 
 For those who are willing to help developing or testing, here's the manual.
 
@@ -76,4 +76,5 @@ SOFTWARE.
 [1]: https://travis-ci.org/clowwindy/ShadowSPDY.svg?branch=master
 [2]: https://travis-ci.org/clowwindy/ShadowSPDY
 [3]: https://github.com/clowwindy/shadowsocks
-[4]: https://github.com/clowwindy/ShadowSPDY/issues
+[4]: http://www.chromium.org/spdy
+[5]: https://github.com/clowwindy/ShadowSPDY/issues

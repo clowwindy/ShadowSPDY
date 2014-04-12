@@ -1,7 +1,7 @@
 {
     "name": "shadowspdy",
     "description": "a tunnel proxy using spdy as the tunnel",
-    "keywords": ["SPDY", "proxy", "http", "https"],
+    "keywords": ["SPDY", "proxy", "http", "https", "socks", "tunnel"],
     "author": {
         "name":"clowwindy",
         "email":"clowwindy42@gmail.com"
