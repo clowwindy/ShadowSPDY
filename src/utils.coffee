@@ -23,6 +23,7 @@
 fs = require 'fs'
 util = require 'util'
 argparse = require 'argparse'
+path = require 'path'
 
 utils = exports
 
