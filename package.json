@@ -6,7 +6,7 @@
         "name":"clowwindy",
         "email":"clowwindy42@gmail.com"
     },
-    "version": "0.1.3",
+    "version": "0.1.4",
     "licenses": [{
         "type": "MIT",
         "url": "https://raw.github.com/clowwindy/shadowspdy/master/LICENSE"
@@ -19,8 +19,8 @@
     },
     "main": "./lib/shadowspdy/local",
     "bin": {
-        "sphttp": "./bin/splocal",
-        "spspdy": "./bin/spserver"
+        "splocal": "./bin/splocal",
+        "spserver": "./bin/spserver"
     },
     "scripts": {
         "test": "cake test"
