@@ -6,13 +6,13 @@
         "name":"clowwindy",
         "email":"clowwindy42@gmail.com"
     },
-    "version": "0.1.2",
+    "version": "0.1.3",
     "licenses": [{
         "type": "MIT",
         "url": "https://raw.github.com/clowwindy/shadowspdy/master/LICENSE"
     }],
     "engines": {
-        "node": ">=0.8.0"
+        "node": "~0.10"
     },
     "directories": {
         "lib": "./lib/shadowspdy"
@@ -32,9 +32,10 @@
         "url": "https://github.com/clowwindy/shadowspdy.git"
     },
     "dependencies": {
-        "spdy": "=1.24.0"
+        "spdy": "=1.24.0",
+        "argparse": "=0.1.15"
     },
     "devDependencies": {
-        "coffee-script": ">=1.6.2"
+        "coffee-script": ">=1.7.0"
     }
 }

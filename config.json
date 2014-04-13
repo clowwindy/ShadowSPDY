@@ -4,5 +4,6 @@
     "local_port":1081,
     "password":"Alphaville",
     "timeout":300,
-    "method":"aes-256-cfb"
+    "method":"aes-256-cfb",
+    "connections": 1
 }

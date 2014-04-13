@@ -36,76 +36,34 @@ exports.main = ->
   
   inetNtoa = (buf) ->
     buf[0] + "." + buf[1] + "." + buf[2] + "." + buf[3]
-  inetAton = (ipStr) ->
-    parts = ipStr.split(".")
-    unless parts.length is 4
-      null
-    else
-      buf = new Buffer(4)
-      i = 0
   
-      while i < 4
-        buf[i] = +parts[i]
-        i++
-      buf
-  
-  configFromArgs = utils.parseArgs()
-  configPath = 'config.json'
-  if configFromArgs.config_file
-    configPath = configFromArgs.config_file
-  if not fs.existsSync(configPath)
-    configPath = path.resolve(__dirname, "config.json")
-    if not fs.existsSync(configPath)
-      configPath = path.resolve(__dirname, "../../config.json")
-      if not fs.existsSync(configPath)
-        configPath = null
-  if configPath
-    utils.info 'loading config from ' + configPath
-    configContent = fs.readFileSync(configPath)
-    try
-      config = JSON.parse(configContent)
-    catch e
-      utils.error('found an error in config.json: ' + e.message)
-      process.exit 1
-  else
-    config = {}
-  for k, v of configFromArgs
-    config[k] = v
-  if config.verbose
-    utils.config(utils.DEBUG)
-    
-  utils.checkConfig config
+  config = utils.parseArgs true
 
-  timeout = Math.floor(config.timeout * 1000) or 600000
+  timeout = Math.floor(config.timeout * 1000) or 300000
   portPassword = config.port_password
-  port = config.server_port
-  key = config.password
-  METHOD = config.method
-  SERVER = config.server
   
-  if not (SERVER and (port or portPassword) and key)
+  if not (config.server and (config.server_port or portPassword) and config.password)
     utils.warn 'config.json not found, you have to specify all config in commandline'
     process.exit 1
     
   connections = 0
   
   if portPassword 
-    if port or key
+    if config.server_port or config.password
       utils.warn 'warning: port_password should not be used with server_port and password. server_port and password will be ignored'
   else
     portPassword = {}
-    portPassword[port.toString()] = key
+    portPassword[config.server_port.toString()] = config.password
       
     
-  for port, key of portPassword
+  for _port, key of portPassword
     (->
       # let's use enclosures to seperate scopes of different servers
-      PORT = port
-      KEY = key
-      utils.info "calculating ciphers for port #{PORT}"
+      port = _port
+      utils.info "calculating ciphers for port #{port}"
 
       server = net.createServer((socket) ->
-        socket = new encrypt.ShadowStream socket, METHOD, KEY
+        socket = new encrypt.ShadowStream socket, config.method, key
         conn = new spdy.Connection(socket, {
           isServer: true,
           client: false
@@ -182,16 +140,6 @@ exports.main = ->
                   stage = 5
                   utils.debug "stage = 5"
                 )
-#                remote.on "data", (data) ->
-#                  utils.log utils.EVERYTHING, "remote on data"
-#                  if stream
-#                    remote.pause()  unless stream.write(data)
-#                  else
-#                    remote.end() if remote
-#        
-#                remote.on "end", ->
-#                  utils.debug "remote on end"
-#                  stream.end() if stream
        
                 remote.on "error", (e)->
                   utils.debug "remote on error"
@@ -203,11 +151,7 @@ exports.main = ->
                     stream.destroy() if stream
                   else
                     stream.end() if stream
-        
-#                remote.on "drain", ->
-#                  utils.debug "remote on drain"
-#                  stream.resume() if stream
-        
+       
                 remote.setTimeout timeout, ->
                   utils.debug "remote on timeout"
                   remote.destroy() if remote
@@ -231,11 +175,7 @@ exports.main = ->
               # remote server not connected
               # cache received buffers
               # make sure no data is lost
-        
-#          stream.on "end", ->
-#            utils.debug "connection on end"
-#            remote.end()  if remote
-#         
+         
           stream.on "error", (e)->
             utils.debug "connection on error"
             utils.error "local error: #{e}"
@@ -248,21 +188,17 @@ exports.main = ->
               remote.end() if remote
             clean()
         
-#          stream.on "drain", ->
-#            utils.debug "connection on drain"
-#            remote.resume()  if remote
-        
           stream.setTimeout timeout, ->
             utils.debug "connection on timeout"
             remote.destroy()  if remote
             stream.destroy() if stream
         )
-      servers = SERVER
+      servers = config.server
       unless servers instanceof Array
         servers = [servers]
       for server_ip in servers
-        server.listen PORT, server_ip, ->
-          utils.info "server listening at #{server_ip}:#{PORT} "
+        server.listen port, server_ip, ->
+          utils.info "server listening at #{server_ip}:#{port} "
         
       server.on "error", (e) ->
         if e.code is "EADDRINUSE"

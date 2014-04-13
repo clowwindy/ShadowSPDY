@@ -47,7 +47,7 @@ currentConnections = 0
 connectionIdCount = 1
 streamIdCount = 1
 
-createServer = (serverAddr, serverPort, port, key, method, timeout, local_address=null, connections=1) ->
+createServer = (serverAddr, serverPort, port, key, method, timeout, local_address='127.0.0.1', connections=1) ->
   _connections = {}
   new strategy.WindowSizeStrategy _connections, {}
   
@@ -126,23 +126,6 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
   
 
 #  udpServer = udpRelay.createServer(local_address, port, serverAddr, serverPort, key, method, timeout, true)
-#
-#  getServer = ->
-#    aPort = serverPort
-#    aServer = serverAddr
-#    if serverPort instanceof Array
-#      # support config like "server_port": [8081, 8082]
-#      aPort = serverPort[Math.floor(Math.random() * serverPort .length)]
-#    if serverAddr instanceof Array
-#      # support config like "server": ["123.123.123.1", "123.123.123.2"]
-#      aServer = serverAddr[Math.floor(Math.random() * serverAddr .length)]
-#    r = /^(.*)\:(\d+)$/.exec(aServer)
-#    # support config like "server": "123.123.123.1:8381"
-#    # or "server": ["123.123.123.1:8381", "123.123.123.2:8381", "123.123.123.2:8382"]
-#    if r?
-#      aServer = r[1]
-#      aPort = +r[2]
-#    return [aServer, aPort]
 
   server = net.createServer((connection) ->
     currentConnections += 1
@@ -165,8 +148,6 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
     connection.on "data", (data) ->
       utils.log utils.EVERYTHING, "connection on data"
       if stage is 5
-        # pipe sockets
-#        connection.pause()  unless remote.write(data)
         return
       if stage is 0
         tempBuf = new Buffer(2)
@@ -236,10 +217,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
           buf.writeInt16BE 2222, 8
           connection.write buf
           # connect remote server
-#          [aServer, aPort] = getServer()
-#          utils.info "connecting #{aServer}:#{aPort}"
           utils.info "connecting #{remoteAddr}:#{remotePort}"
-#          remote = net.connect(aPort, aServer, ->
           getConnection (aConnection) ->
             if not aConnection?
               connection.destroy() if connection
@@ -261,20 +239,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
               stage = 5
               utils.debug "stage = 5"
             )
-           
-#            remote.on "data", (data) ->
-#              utils.log utils.EVERYTHING, "remote on data"
-#              try
-#                remote.pause()  unless connection.write(data)
-#              catch e
-#                utils.error e
-#                remote.destroy() if remote
-#                connection.destroy() if connection
-#  
-#            remote.on "end", ->
-#              utils.debug "remote on end"
-#              connection.end() if connection
-  
+          
             remote.on "error", (e)->
               utils.debug "remote on error"
               utils.error "remote #{remoteAddr}:#{remotePort} error: #{e}"
@@ -285,16 +250,11 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
                 connection.destroy() if connection
               else
                 connection.end() if connection
-#  
-#            remote.on "drain", ->
-#              utils.debug "remote on drain"
-#              connection.resume() if connection
   
             remote.setTimeout timeout, ->
               utils.debug "remote on timeout"
               remote.destroy() if remote
               connection.destroy() if connection
-              
 
           if data.length > headerLength
             buf = new Buffer(data.length - headerLength)
@@ -314,10 +274,6 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
     # cache received buffers
     # make sure no data is lost
 
-#    connection.on "end", ->
-#      utils.debug "connection on end"
-#      remote.end()  if remote
-
     connection.on "error", (e)->
       utils.debug "connection on error"
       utils.error "local error: #{e}"
@@ -329,11 +285,6 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
       else
         remote.end() if remote
       clean()
-
-#    connection.on "drain", ->
-#      # calling resume() when remote not is connected will crash node.js
-#      utils.debug "connection on drain"
-#      remote.resume() if remote and stage is 5
 
     connection.setTimeout timeout, ->
       utils.debug "connection on timeout"
@@ -361,45 +312,12 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
 exports.createServer = createServer
 exports.main = ->
   console.log(utils.version)
-  configFromArgs = utils.parseArgs()
-  configPath = 'config.json'
-  if configFromArgs.config_file
-    configPath = configFromArgs.config_file
-  if not fs.existsSync(configPath)
-    configPath = path.resolve(__dirname, "config.json")
-    if not fs.existsSync(configPath)
-      configPath = path.resolve(__dirname, "../../config.json")
-      if not fs.existsSync(configPath)
-        configPath = null
-  if configPath
-    utils.info 'loading config from ' + configPath
-    configContent = fs.readFileSync(configPath)
-    try
-      config = JSON.parse(configContent)
-    catch e
-      utils.error('found an error in config.json: ' + e.message)
-      process.exit 1
-  else
-    config = {}
-  for k, v of configFromArgs
-    config[k] = v
-  if config.verbose
-    utils.config(utils.DEBUG)
 
-  utils.checkConfig config
-
-  SERVER = config.server
-  REMOTE_PORT = config.server_port
-  PORT = config.local_port
-  KEY = config.password
-  METHOD = config.method
-  local_address = config.local_address
-  connections = config.connections or 1
-  if not (SERVER and REMOTE_PORT and PORT and KEY)
-    utils.warn 'config.json not found, you have to specify all config in commandline'
-    process.exit 1
-  timeout = Math.floor(config.timeout * 1000) or 600000
-  s = createServer SERVER, REMOTE_PORT, PORT, KEY, METHOD, timeout, local_address, connections
+  config = utils.parseArgs false
+  timeout = Math.floor(config.timeout * 1000) or 300000
+  s = createServer config.server, config.server_port, config.local_port, 
+    config.password, config.method, timeout, config.local_address, 
+    config.connections
   s.on "error", (e) ->
     process.stdout.on 'drain', ->
       process.exit 1
