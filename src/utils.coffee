@@ -34,7 +34,7 @@ exports.checkConfig = (config) ->
   if (config.method or '').toLowerCase() == 'rc4'
     exports.warn 'RC4 is not safe; please use a safer cipher, like AES-256-CFB'
 
-exports.rawVersion = "0.1.4"
+exports.rawVersion = "0.1.5"
 exports.version = "shadowspdy v#{exports.rawVersion}"
 
 exports.EVERYTHING = 0
