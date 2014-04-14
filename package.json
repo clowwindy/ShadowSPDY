@@ -6,7 +6,7 @@
         "name":"clowwindy",
         "email":"clowwindy42@gmail.com"
     },
-    "version": "0.1.6",
+    "version": "0.1.7",
     "licenses": [{
         "type": "MIT",
         "url": "https://raw.github.com/clowwindy/shadowspdy/master/LICENSE"
@@ -32,7 +32,7 @@
         "url": "https://github.com/clowwindy/shadowspdy.git"
     },
     "dependencies": {
-        "spdy": "=1.24.0",
+        "spdy": "=1.25.1",
         "argparse": "=0.1.15"
     },
     "devDependencies": {
