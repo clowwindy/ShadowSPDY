@@ -124,7 +124,7 @@ exports.main = ->
                 # connect remote server
                 remote = net.connect(remotePort, remoteAddr, ->
                   utils.info "connecting #{remoteAddr}:#{remotePort}"
-                  if not remote? or not connection?
+                  if not remote? or not stream?
                     return
                   i = 0
         
