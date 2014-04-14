@@ -223,6 +223,8 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
               connection.destroy() if connection
               return
             remote = createStream(aConnection, ->
+              if not remote? or not connection?
+                return
               addrToSendBuf = new Buffer(addrToSend, "binary")
               remote.write addrToSendBuf
               i = 0
