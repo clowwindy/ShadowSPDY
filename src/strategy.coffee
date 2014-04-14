@@ -82,6 +82,7 @@ class WindowSizeStrategy extends LocalStrategy
         
         setTimeout ->
           try
+            # TODO check if windowSize has changed
             connection.socket.destroy()
           catch e
             utils.error "error when destroying connection: #{e}"
