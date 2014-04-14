@@ -29,6 +29,10 @@ Protocol
 ShadowSPDY simply adds an SPDY layer into Shadowsocks. Thus it provides benefits 
 from SPDY, such as low latency, low resource consumption.
 
+ShadowSPDY works best on VPS with > 200ms RTT, 2% packet loss, according to
+[Google's research on SPDY][6]. Notice that when packet loss is very high
+(e.g. >10%), ShadowSPDY will be slower than Shadowsocks.
+
 ### Shadowsocks
 
     |-------------------------|
@@ -78,3 +82,4 @@ SOFTWARE.
 [3]: https://github.com/clowwindy/shadowsocks
 [4]: http://www.chromium.org/spdy
 [5]: https://github.com/clowwindy/ShadowSPDY/issues
+[6]: http://www.chromium.org/spdy/spdy-whitepaper#TOC-Preliminary-results
