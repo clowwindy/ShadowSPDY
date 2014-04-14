@@ -33,6 +33,9 @@ exports.checkConfig = (config) ->
     exports.warn "Notice server will listen at #{config.server}:#{config.server_port}"
   if (config.method or '').toLowerCase() == 'rc4'
     exports.warn 'RC4 is not safe; please use a safer cipher, like AES-256-CFB'
+  if parseInt(process.versions.node.split('.')[1]) < 10
+    exports.error 'Your node version is ' + process.versions.node + ' , please install node.js v0.10 from http://nodejs.org/'
+    process.exit()
 
 exports.rawVersion = "0.1.5"
 exports.version = "shadowspdy v#{exports.rawVersion}"
