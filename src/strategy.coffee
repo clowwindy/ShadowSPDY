@@ -80,13 +80,13 @@ class WindowSizeStrategy extends LocalStrategy
         utils.warn "removing dead connection for #{now - state.lastWindowSizeChange} seconds but wrote on #{now - state.lastSinkSizeChangeSatisfyingT1} ago"
         connection = @_connections[key]
         
-        setTimeout ->
-          try
-            # TODO check if windowSize has changed
-            connection.socket.destroy()
-          catch e
-            utils.error "error when destroying connection: #{e}"
-        , 5 * 60 * 1000
+#        setTimeout ->
+#          try
+#            TODO check if windowSize has changed
+        connection.socket.destroy()
+#          catch e
+#            utils.error "error when destroying connection: #{e}"
+#        , 5 * 60 * 1000
         
         delete @_connections[key]
  
