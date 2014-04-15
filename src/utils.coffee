@@ -37,7 +37,7 @@ exports.checkConfig = (config) ->
     exports.error 'Your node version is ' + process.versions.node + ' , please install node.js v0.10 from http://nodejs.org/'
     process.exit()
 
-exports.rawVersion = "0.1.7"
+exports.rawVersion = "0.1.8"
 exports.version = "shadowspdy v#{exports.rawVersion}"
 
 exports.EVERYTHING = 0
