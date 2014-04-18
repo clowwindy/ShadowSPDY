@@ -149,6 +149,7 @@ class ShadowStream extends stream.Duplex
       @push plain
   
   _write: (chunk, encoding, callback) ->
+    r = true
     if chunk instanceof String
       chunk = new Buffer(chunk, encoding)
     try
@@ -156,10 +157,11 @@ class ShadowStream extends stream.Duplex
       if not @_IVSent
         @_IVSent = true
         cipher = Buffer.concat [@_sendIV, cipher]
-      @_source.write cipher
+      r = @_source.write cipher
     catch e
       return callback(e)
     callback()
+    return r
   
   end: (data) ->
     if data? and data.length > 0
