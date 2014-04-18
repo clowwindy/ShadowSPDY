@@ -70,7 +70,7 @@ createServer = (serverAddr, serverPort, port, key, method, timeout, local_addres
     _socket = net.connect {port: serverPort, host: serverAddr}, ->
       connection = new spdy.Connection(_socket, {
         isServer: false
-        windowSize: 10 * 1024 * 1024  # 10M window size
+#        windowSize: 10 * 1024 * 1024  # 10M window size
       })
       connection._setVersion(3.1)
       connection._connectionId = connectionIdCount
