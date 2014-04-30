@@ -11,6 +11,9 @@ Usage
 ShadowSPDY is currently beta. Future versions may NOT be compatible with this 
 version.
 
+This project is experimental and in its very early stage. **DO NOT DEPLOY IT 
+FOR PRODUCTION USAGE!**
+
 You can submit bugs and issues on the [issue tracker][5].
 
 For those who are willing to help developing or testing, here's the manual.
@@ -27,11 +30,13 @@ Protocol
 --------
 
 ShadowSPDY simply adds an SPDY layer into Shadowsocks. Thus it provides benefits 
-from SPDY, such as low latency, low resource consumption.
+from SPDY, such as low latency, low resource consumption. On the other hands, 
+all disadvantages, such as one single packet loss will slow down all active
+streams.
 
-ShadowSPDY works best on VPS with > 200ms RTT, 2% packet loss, according to
-[Google's research on SPDY][6]. Notice that when packet loss is very high
-(e.g. >10%), ShadowSPDY will be slower than Shadowsocks.
+ShadowSPDY works best on VPS with > 200ms RTT, < 2% packet loss, according to
+[Google's research on SPDY][6]. Notice that when packet loss is high
+(e.g. >10%), ShadowSPDY will be significantly slower than Shadowsocks.
 
 ### Shadowsocks
 
