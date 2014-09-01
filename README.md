@@ -6,7 +6,7 @@ ShadowSPDY is a tunnel proxy, which builds on top of [Shadowsocks][3] and
 [SPDY][4].
 
 **Experiments show that ShadowSPDY is less efficient than Shadowsocks
-with TCP Fast Open support.**
+with [TCP Fast Open][7] support.**
 
 Usage
 -----
@@ -91,3 +91,4 @@ SOFTWARE.
 [4]: http://www.chromium.org/spdy
 [5]: https://github.com/clowwindy/ShadowSPDY/issues
 [6]: http://www.chromium.org/spdy/spdy-whitepaper#TOC-Preliminary-results
+[7]: https://github.com/clowwindy/shadowsocks/wiki/TCP-Fast-Open
