@@ -4,7 +4,10 @@ ShadowSPDY
 
 ShadowSPDY is a tunnel proxy, which builds on top of [Shadowsocks][3] and 
 [SPDY][4].
- 
+
+**Experiments show that ShadowSPDY is less efficient than Shadowsocks
+with TCP Fast Open support.**
+
 Usage
 -----
 
